@@ -13,6 +13,7 @@ import {
   Menu,
   X,
 } from "lucide-react";
+import { useToast } from "@/components/toast";
 
 // ─── Navigation Items ────────────────────────────────────────
 const navItems = [
@@ -31,6 +32,8 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [logoutModalOpen, setLogoutModalOpen] = useState(false);
+  const { addToast } = useToast();
 
   const toggleMobile = useCallback(() => {
     setMobileOpen((prev) => !prev);
@@ -96,6 +99,7 @@ export default function Sidebar() {
       {/* Log Out */}
       <div className="px-3 pb-6">
         <button
+          onClick={() => setLogoutModalOpen(true)}
           className="flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium
                      text-accent-red hover:bg-red-50 transition-all duration-200 w-full"
         >
@@ -141,6 +145,47 @@ export default function Sidebar() {
       <aside className="hidden lg:block fixed top-0 left-0 h-full w-60 bg-surface border-r border-border shadow-sidebar z-30">
         {sidebarContent}
       </aside>
+
+      {/* ── Logout Modal ─────────────────────────────────────── */}
+      {logoutModalOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-fade-in"
+            onClick={() => setLogoutModalOpen(false)}
+          />
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div
+              className="bg-surface rounded-2xl shadow-dropdown border border-border w-full max-w-sm
+                         p-6 animate-fade-in"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-lg font-bold text-text-primary mb-2">Log Out</h3>
+              <p className="text-sm text-text-secondary mb-6">
+                Are you sure you want to log out of your account?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setLogoutModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-surface text-text-primary text-sm font-semibold
+                             border border-border hover:bg-surface-hover transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setLogoutModalOpen(false);
+                    addToast("Logged out successfully.", "success");
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-accent-red text-white text-sm font-semibold
+                             hover:bg-red-600 transition-colors"
+                >
+                  Log Out
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </>
   );
 }
