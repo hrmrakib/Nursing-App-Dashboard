@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Providers from "@/redux/features/Providers";
 
 export const metadata: Metadata = {
   title: "IAC Staffing Dashboard",
@@ -13,8 +14,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
-      <body className="min-h-full bg-surface-alt">{children}</body>
+    <html lang='en' className='h-full'>
+      <body className='min-h-full bg-surface-alt'>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
