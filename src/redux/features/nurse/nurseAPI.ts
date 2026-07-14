@@ -4,14 +4,34 @@ const nurseAPI = baseAPI.injectEndpoints({
   endpoints: (builder) => ({
     getAllNurse: builder.query({
       query: (params) => ({
-        url: "/nurses/admin/",
+        url: "/nurses/",
         method: "GET",
-        params,
+        params: params ?? {},
       }),
       providesTags: ["Nurse"],
+    }),
+
+    getSingleNurse: builder.query({
+      query: (id) => ({
+        url: `/nurses/${id}/`,
+      }),
+      providesTags: ["Nurse"],
+    }),
+
+    nurseReview: builder.mutation({
+      query: ({ id, action }) => ({
+        url: `/api/v1/nurses/${id}/review/`,
+        method: "POST",
+        body: { action },
+      }),
+      invalidatesTags: ["Nurse"],
     }),
   }),
 });
 
-export const { useGetAllNurseQuery } = nurseAPI;
+export const {
+  useGetAllNurseQuery,
+  useGetSingleNurseQuery,
+  useNurseReviewMutation,
+} = nurseAPI;
 export default nurseAPI;

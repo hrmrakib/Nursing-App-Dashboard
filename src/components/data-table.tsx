@@ -14,7 +14,7 @@ export interface Column<T> {
   render?: (row: T) => React.ReactNode;
 }
 
-interface DataTableProps<T extends { id: string }> {
+interface DataTableProps<T extends { id: string | number }> {
   /** Table title (e.g. "Recent Applications") */
   title: string;
   /** Column definitions */
@@ -32,7 +32,7 @@ interface DataTableProps<T extends { id: string }> {
  * - Desktop: full table layout
  * - Mobile: horizontally scrollable
  */
-export default function DataTable<T extends { id: string }>({
+export default function DataTable<T extends { id: string | number }>({
   title,
   columns,
   data,
@@ -54,22 +54,25 @@ export default function DataTable<T extends { id: string }>({
       searchableFields.some((field) => {
         const val = row[field];
         return typeof val === "string" && val.toLowerCase().includes(query);
-      })
+      }),
     );
   }, [data, searchQuery, searchableFields]);
 
   // ─── Loading state ─────────────────────────────────────────
   if (loading) {
     return (
-      <div className="bg-surface rounded-xl border border-border shadow-card overflow-hidden animate-fade-in">
-        <div className="px-6 py-4 flex items-center justify-between border-b border-border">
-          <div className="skeleton h-6 w-40" />
-          <div className="skeleton h-9 w-48" />
+      <div className='bg-surface rounded-xl border border-border shadow-card overflow-hidden animate-fade-in'>
+        <div className='px-6 py-4 flex items-center justify-between border-b border-border'>
+          <div className='skeleton h-6 w-40' />
+          <div className='skeleton h-9 w-48' />
         </div>
         {Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className="px-6 py-4 border-b border-border-light flex gap-6">
+          <div
+            key={i}
+            className='px-6 py-4 border-b border-border-light flex gap-6'
+          >
             {columns.map((_, j) => (
-              <div key={j} className="skeleton h-4 w-24 flex-1" />
+              <div key={j} className='skeleton h-4 w-24 flex-1' />
             ))}
           </div>
         ))}
@@ -78,25 +81,23 @@ export default function DataTable<T extends { id: string }>({
   }
 
   return (
-    <div className="bg-surface rounded-xl border border-border shadow-card overflow-hidden animate-fade-in">
+    <div className='bg-surface rounded-xl border border-border shadow-card overflow-hidden animate-fade-in'>
       {/* ── Title Row + Search ─────────────────────────────────── */}
-      <div className="px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
-        {searchableFields.length > 0 && (
-          <SearchBar onSearch={handleSearch} />
-        )}
+      <div className='px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3'>
+        <h2 className='text-lg font-semibold text-text-primary'>{title}</h2>
+        {searchableFields.length > 0 && <SearchBar onSearch={handleSearch} />}
       </div>
 
       {/* ── Table ──────────────────────────────────────────────── */}
-      <div className="overflow-x-auto">
-        <table className="w-full min-w-[600px]">
+      <div className='overflow-x-auto'>
+        <table className='w-full min-w-[600px]'>
           {/* Header */}
           <thead>
-            <tr className="bg-primary">
+            <tr className='bg-primary'>
               {columns.map((col) => (
                 <th
                   key={String(col.key)}
-                  className="px-6 py-3 text-left text-sm font-semibold text-white first:rounded-tl-none last:rounded-tr-none"
+                  className='px-6 py-3 text-left text-sm font-semibold text-white first:rounded-tl-none last:rounded-tr-none'
                 >
                   {col.label}
                 </th>
@@ -108,11 +109,11 @@ export default function DataTable<T extends { id: string }>({
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan={columns.length} className="px-6 py-16 text-center">
-                  <div className="flex flex-col items-center gap-3 text-text-muted">
+                <td colSpan={columns.length} className='px-6 py-16 text-center'>
+                  <div className='flex flex-col items-center gap-3 text-text-muted'>
                     <Inbox size={40} strokeWidth={1.5} />
-                    <p className="text-sm font-medium">No results found</p>
-                    <p className="text-xs">
+                    <p className='text-sm font-medium'>No results found</p>
+                    <p className='text-xs'>
                       Try adjusting your search or filters.
                     </p>
                   </div>
@@ -131,7 +132,7 @@ export default function DataTable<T extends { id: string }>({
                   {columns.map((col) => (
                     <td
                       key={String(col.key)}
-                      className="px-6 py-3.5 text-sm text-text-primary"
+                      className='px-6 py-3.5 text-sm text-text-primary'
                     >
                       {col.render
                         ? col.render(row)

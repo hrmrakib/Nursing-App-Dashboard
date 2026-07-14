@@ -13,7 +13,14 @@ export interface NavItem {
 export interface StatCardData {
   label: string;
   value: string | number;
-  icon: "nurses" | "shifts" | "completed" | "pending" | "active" | "rejected" | "assigned";
+  icon:
+    | "nurses"
+    | "shifts"
+    | "completed"
+    | "pending"
+    | "active"
+    | "rejected"
+    | "assigned";
   color: "blue" | "green" | "amber" | "red";
 }
 
@@ -30,10 +37,21 @@ export type RepeatOption = "Does Not Repeat" | "Daily" | "Weekly" | "Monthly";
 export type PatientRatio = "1:1" | "1:2" | "1:3" | "1:4" | "1:5" | "1:6";
 
 /** Experience required options */
-export type ExperienceRequired = "No Experience" | "6 Months" | "1 Year" | "2 Years" | "3+ Years" | "5+ Years";
+export type ExperienceRequired =
+  | "No Experience"
+  | "6 Months"
+  | "1 Year"
+  | "2 Years"
+  | "3+ Years"
+  | "5+ Years";
 
 /** Dress code options */
-export type DressCode = "Navy Scrubs" | "Black Scrubs" | "White Scrubs" | "Facility Uniform" | "Business Casual";
+export type DressCode =
+  | "Navy Scrubs"
+  | "Black Scrubs"
+  | "White Scrubs"
+  | "Facility Uniform"
+  | "Business Casual";
 
 /** Shift card data for the grid display */
 export interface ShiftCard {
@@ -83,10 +101,24 @@ export interface AddShiftFormData {
 }
 
 /** Application status */
-export type ApplicationStatus = "Pending" | "Approved" | "Rejected";
 
-/** Nurse filter tab */
-export type NurseFilterTab = "pending" | "approved" | "rejected";
+export type ApplicationStatus =
+  | "not_submitted"
+  | "pending_review"
+  | "approved"
+  | "rejected";
+
+export interface Nurse {
+  id: number;
+  name: string;
+  email: string;
+  nurse_type: string;
+  application_status: ApplicationStatus;
+  submitted_at: string | null;
+}
+
+// Tabs now map 1:1 to backend statuses since filtering happens server-side
+export type NurseFilterTab = ApplicationStatus;
 
 /** Recent application entry (Dashboard page) */
 export interface Application {
@@ -99,7 +131,7 @@ export interface Application {
 
 /** Nurse record (Nurse Management page) */
 export interface Nurse {
-  id: string;
+  id: number;
   name: string;
   role: string;
   assignedFacility: string;
@@ -111,7 +143,7 @@ export interface Nurse {
 
 /** Nurse profile detail */
 export interface NurseProfile {
-  id: string;
+  id: string | number;
   name: string;
   avatar: string;
   phone: string;
