@@ -13,6 +13,7 @@ import {
   rejectedNurses,
 } from "@/lib/mock-data";
 import type { Nurse, NurseFilterTab } from "@/lib/types";
+import { useGetAllNurseQuery } from "@/redux/features/nurse/nurseAPI";
 
 // ─── Column definitions per tab ──────────────────────────────
 
@@ -47,8 +48,8 @@ const pendingColumns: Column<Nurse>[] = [
     render: (row) => (
       <Link
         href={`/nurse-management/${row.id}`}
-        className="inline-block px-5 py-1.5 rounded-full bg-primary text-white text-xs font-medium
-                   hover:bg-primary-light transition-colors duration-200"
+        className='inline-block px-5 py-1.5 rounded-full bg-primary text-white text-xs font-medium
+                   hover:bg-primary-light transition-colors duration-200'
       >
         Review
       </Link>
@@ -87,8 +88,8 @@ const approvedRejectedColumns: Column<Nurse>[] = [
     render: (row) => (
       <Link
         href={`/nurse-management/${row.id}`}
-        className="inline-block px-5 py-1.5 rounded-full bg-primary text-white text-xs font-medium
-                   hover:bg-primary-light transition-colors duration-200"
+        className='inline-block px-5 py-1.5 rounded-full bg-primary text-white text-xs font-medium
+                   hover:bg-primary-light transition-colors duration-200'
       >
         View
       </Link>
@@ -104,6 +105,11 @@ const approvedRejectedColumns: Column<Nurse>[] = [
 export default function NurseManagementPage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<NurseFilterTab>("pending");
+  const { data: nurseData } = useGetAllNurseQuery(undefined);
+
+  const allNurse = nurseData?.data ?? [];
+
+  console.log({ allNurse });
 
   // Simulate loading delay
   useEffect(() => {
@@ -124,12 +130,12 @@ export default function NurseManagementPage() {
   }, [activeTab]);
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       {/* ── Stat Cards ────────────────────────────────────────── */}
       {loading ? (
         <StatsGridSkeleton />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4'>
           {nurseManagementStats.map((stat) => (
             <StatCard key={stat.label} {...stat} />
           ))}
@@ -143,7 +149,7 @@ export default function NurseManagementPage() {
 
       {/* ── Data Table ────────────────────────────────────────── */}
       <DataTable<Nurse>
-        title="Recent Applications"
+        title='Recent Applications'
         columns={columns}
         data={data}
         searchableFields={["name", "role", "assignedFacility"]}
