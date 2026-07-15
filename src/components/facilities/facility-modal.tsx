@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { X, MapPin, Building2, Map, Navigation, UploadCloud } from "lucide-react";
+import { X, MapPin, Building2, UploadCloud } from "lucide-react";
 import { Facility } from "./facility-card";
+import CommonLocationInput from "../common-location-input";
 
 interface FacilityModalProps {
   isOpen: boolean;
@@ -32,7 +33,6 @@ export default function FacilityModal({
   const [email, setEmail] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
-  const [isGeocoding, setIsGeocoding] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -97,25 +97,6 @@ export default function FacilityModal({
     onSubmit(formData);
   };
 
-  const handleGeocode = async () => {
-    if (!address) return;
-    setIsGeocoding(true);
-    try {
-      // Use free Nominatim API for geocoding
-      const query = `${address}, ${city}, ${stateCode}, ${zip}`.replace(/,\s*,/g, ",").trim();
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-      const data = await res.json();
-      if (data && data.length > 0) {
-        setLatitude(data[0].lat);
-        setLongitude(data[0].lon);
-      }
-    } catch (error) {
-      console.error("Geocoding failed", error);
-    } finally {
-      setIsGeocoding(false);
-    }
-  };
-
   return (
     <>
       <div
@@ -163,25 +144,23 @@ export default function FacilityModal({
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">
-                  Address (Location)
-                </label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                    <MapPin size={16} />
-                  </div>
-                  <input
-                    type="text"
-                    required
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Enter address"
-                    className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  />
-                  <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-blue-600">
-                    <Navigation size={16} />
-                  </div>
-                </div>
+                <CommonLocationInput
+                  label="Address (Location)"
+                  value={address}
+                  onChange={(res) => {
+                    if (res) {
+                      setAddress(res.address);
+                      setLatitude(res.lat.toString());
+                      setLongitude(res.lng.toString());
+                    } else {
+                      setAddress("");
+                      setLatitude("");
+                      setLongitude("");
+                    }
+                  }}
+                  placeholder="Enter address"
+                  className="pl-10" // To leave room for the MapPin if we want, but CommonLocationInput doesn't have an icon slot easily. Let's just pass basic classes.
+                />
               </div>
 
               <div className="grid grid-cols-3 gap-4">
@@ -252,35 +231,27 @@ export default function FacilityModal({
               </div>
 
               <div className="grid grid-cols-2 gap-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
-                <div className="col-span-2 flex justify-between items-center mb-1">
+                <div className="col-span-2 mb-1">
                   <label className="block text-sm font-semibold text-gray-700">
-                    Coordinates (Lat/Lng)
+                    Coordinates (Auto-filled from Address)
                   </label>
-                  <button
-                    type="button"
-                    onClick={handleGeocode}
-                    disabled={isGeocoding}
-                    className="text-xs text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
-                  >
-                    {isGeocoding ? "Fetching..." : "Auto-fill from Address"}
-                  </button>
                 </div>
                 <div>
                   <input
                     type="text"
+                    readOnly
                     value={latitude}
-                    onChange={(e) => setLatitude(e.target.value)}
                     placeholder="Latitude"
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-gray-100 text-gray-500 cursor-not-allowed"
                   />
                 </div>
                 <div>
                   <input
                     type="text"
+                    readOnly
                     value={longitude}
-                    onChange={(e) => setLongitude(e.target.value)}
                     placeholder="Longitude"
-                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none"
+                    className="w-full px-3 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 outline-none bg-gray-100 text-gray-500 cursor-not-allowed"
                   />
                 </div>
               </div>
