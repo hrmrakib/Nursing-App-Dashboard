@@ -9,6 +9,7 @@ import ShiftDetailModal from "@/components/shift-detail-modal";
 import { StatsGridSkeleton } from "@/components/loading-skeleton";
 import { shiftManagementStats, mockShiftCards } from "@/lib/mock-data";
 import type { ShiftCard, ShiftFilterTab } from "@/lib/types";
+import { useGetAllShiftsAssignmentsQuery } from "@/redux/features/shifts/shiftsAPI";
 
 /** Filter tab definitions */
 const tabs: { key: ShiftFilterTab; label: string }[] = [
@@ -26,6 +27,10 @@ export default function ShiftManagementPage() {
   const [activeTab, setActiveTab] = useState<ShiftFilterTab>("in-progress");
   const [selectedShift, setSelectedShift] = useState<ShiftCard | null>(null);
 
+  const { data } = useGetAllShiftsAssignmentsQuery(undefined);
+
+  console.log({ data });
+
   // Simulate loading delay
   useEffect(() => {
     const timer = setTimeout(() => setLoading(false), 800);
@@ -35,16 +40,16 @@ export default function ShiftManagementPage() {
   // Filter shifts based on active tab
   const filteredShifts = useMemo(
     () => mockShiftCards.filter((s) => s.status === activeTab),
-    [activeTab]
+    [activeTab],
   );
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       {/* ── Stat Cards ────────────────────────────────────────── */}
       {loading ? (
         <StatsGridSkeleton />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4'>
           {shiftManagementStats.map((stat) => (
             <StatCard key={stat.label} {...stat} />
           ))}
@@ -53,9 +58,9 @@ export default function ShiftManagementPage() {
 
       {/* ── Filter Tabs + Add Shift Button ────────────────────── */}
       {!loading && (
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className='flex items-center justify-between flex-wrap gap-3'>
           {/* Tabs */}
-          <div className="flex items-center gap-2">
+          <div className='flex items-center gap-2'>
             {tabs.map((tab) => {
               const active = activeTab === tab.key;
               return (
@@ -79,9 +84,9 @@ export default function ShiftManagementPage() {
 
           {/* Add Shift Button */}
           <Link
-            href="/shift-management/add"
-            className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary text-white
-                       text-sm font-medium hover:bg-primary-light transition-colors duration-200 shadow-md"
+            href='/shift-management/add'
+            className='inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary text-white
+                       text-sm font-medium hover:bg-primary-light transition-colors duration-200 shadow-md'
           >
             <Plus size={16} />
             Add Shift
@@ -91,47 +96,49 @@ export default function ShiftManagementPage() {
 
       {/* ── Shift Cards Grid ──────────────────────────────────── */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
           {Array.from({ length: 8 }).map((_, i) => (
             <div
               key={i}
-              className="bg-surface rounded-xl border border-border shadow-card overflow-hidden"
+              className='bg-surface rounded-xl border border-border shadow-card overflow-hidden'
             >
-              <div className="skeleton h-40 rounded-none" />
-              <div className="p-4 space-y-3">
-                <div className="skeleton h-4 w-32" />
-                <div className="skeleton h-3 w-20" />
-                <div className="skeleton h-3 w-40" />
-                <div className="skeleton h-5 w-16" />
+              <div className='skeleton h-40 rounded-none' />
+              <div className='p-4 space-y-3'>
+                <div className='skeleton h-4 w-32' />
+                <div className='skeleton h-3 w-20' />
+                <div className='skeleton h-3 w-40' />
+                <div className='skeleton h-5 w-16' />
               </div>
             </div>
           ))}
         </div>
       ) : filteredShifts.length === 0 ? (
         /* Empty state */
-        <div className="bg-surface rounded-xl border border-border shadow-card p-16 text-center">
-          <div className="flex flex-col items-center gap-3 text-text-muted">
+        <div className='bg-surface rounded-xl border border-border shadow-card p-16 text-center'>
+          <div className='flex flex-col items-center gap-3 text-text-muted'>
             <svg
-              width="48"
-              height="48"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
+              width='48'
+              height='48'
+              viewBox='0 0 24 24'
+              fill='none'
+              stroke='currentColor'
+              strokeWidth='1.5'
+              strokeLinecap='round'
+              strokeLinejoin='round'
             >
-              <rect x="3" y="4" width="18" height="18" rx="2" />
-              <path d="M16 2v4M8 2v4M3 10h18" />
+              <rect x='3' y='4' width='18' height='18' rx='2' />
+              <path d='M16 2v4M8 2v4M3 10h18' />
             </svg>
-            <p className="text-sm font-medium">No shifts found</p>
-            <p className="text-xs">
-              There are no {activeTab === "in-progress" ? "in-progress" : "completed"} shifts to display.
+            <p className='text-sm font-medium'>No shifts found</p>
+            <p className='text-xs'>
+              There are no{" "}
+              {activeTab === "in-progress" ? "in-progress" : "completed"} shifts
+              to display.
             </p>
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
           {filteredShifts.map((shift) => (
             <ShiftCardComponent
               key={shift.id}

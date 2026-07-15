@@ -6,6 +6,8 @@ import {
 } from "@/redux/features/nurse/nurseAPI";
 import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
+import { useState } from "react";
+import toast from "react-hot-toast";
 
 export interface NurseDocument {
   document_type: "ssn_card" | "license" | "id_card" | string;
@@ -39,6 +41,7 @@ export interface NurseApiResponse {
 export type ReviewAction = "approve" | "reject";
 export default function NurseProfileDashboard() {
   const router = useRouter();
+  const [actioning, setActioning] = useState("");
 
   // FIX: Extract dynamic route parameter (the '1' in /nurse-management/1)
   const params = useParams<{ id: string }>();
@@ -63,11 +66,14 @@ export default function NurseProfileDashboard() {
     if (!nurseId) return;
 
     try {
+      setActioning(action);
       await reviewNurse({ id: nurseId, action }).unwrap();
-      alert(`Successfully marked as ${action}d!`);
+      toast.success(`Successfully marked as ${action}d!`);
     } catch (error) {
       console.error(`Failed to ${action} nurse:`, error);
-      alert(`An error occurred while trying to ${action} this application.`);
+      toast.error(
+        `An error occurred while trying to ${action} this application.`,
+      );
     }
   };
 
@@ -92,6 +98,8 @@ export default function NurseProfileDashboard() {
   }
 
   const nurse = response.data;
+
+  const isApplicationApproved = nurse?.application_status === "approved";
 
   // Reusable typed component for profile fields
   const ProfileField = ({
@@ -152,6 +160,10 @@ export default function NurseProfileDashboard() {
         {/* Info Fields */}
         <div className='flex flex-col'>
           <ProfileField label='Name' value={nurse.name} />
+          <ProfileField
+            label='Application Status'
+            value={nurse.application_status}
+          />
           <ProfileField label='Phone Number' value={nurse.phone} />
           <ProfileField label='Email' value={nurse.email} />
           <ProfileField label='Address' value={nurse.address} />
@@ -176,12 +188,23 @@ export default function NurseProfileDashboard() {
                 <p className='text-sm font-semibold text-gray-900 capitalize'>
                   {doc.document_type.replace(/_/g, " ")}
                 </p>
-                <div className='relative w-full h-48 sm:h-56 border-2 border-gray-100 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center'>
+                {/* <div className='relative w-full h-48 sm:h-56 border-2 border-gray-100 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center'>
                   <Image
                     src={doc.file}
                     alt={doc.document_type}
                     fill
-                    className='object-cover'
+                    className='w-full object-contain'
+                    unoptimized
+                  />
+                </div> */}
+                <div className='relative w-full border-2 border-gray-100 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center'>
+                  <Image
+                    src={doc.file}
+                    alt={doc.document_type}
+                    width={0}
+                    height={0}
+                    sizes='100vw'
+                    className='w-full h-auto'
                     unoptimized
                   />
                 </div>
@@ -191,23 +214,25 @@ export default function NurseProfileDashboard() {
         )}
 
         {/* Action Buttons */}
-        <div className='flex flex-col gap-3 mt-8'>
-          <button
-            onClick={() => handleReviewAction("approve")}
-            disabled={isReviewing}
-            className='w-full py-3 rounded-lg font-semibold bg-[#112a58] text-white hover:bg-[#0c1e40] transition-colors disabled:opacity-70 disabled:cursor-not-allowed'
-          >
-            {isReviewing ? "Processing..." : "Approve"}
-          </button>
+        {!isApplicationApproved && (
+          <div className='flex flex-col gap-3 mt-8'>
+            <button
+              onClick={() => handleReviewAction("approve")}
+              disabled={isReviewing}
+              className='w-full py-3 rounded-lg font-semibold bg-[#112a58] text-white hover:bg-[#0c1e40] transition-colors disabled:opacity-70 disabled:cursor-not-allowed'
+            >
+              {isReviewing ? "Processing..." : "Approve"}
+            </button>
 
-          <button
-            onClick={() => handleReviewAction("reject")}
-            disabled={isReviewing}
-            className='w-full py-3 rounded-lg font-semibold bg-white text-[#112a58] border-2 border-[#112a58] hover:bg-gray-50 transition-colors disabled:opacity-70 disabled:cursor-not-allowed'
-          >
-            {isReviewing ? "Processing..." : "Reject"}
-          </button>
-        </div>
+            <button
+              onClick={() => handleReviewAction("reject")}
+              disabled={isReviewing}
+              className='w-full py-3 rounded-lg font-semibold bg-white text-[#112a58] border-2 border-[#112a58] hover:bg-gray-50 transition-colors disabled:opacity-70 disabled:cursor-not-allowed'
+            >
+              {isReviewing ? "Processing..." : "Reject"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

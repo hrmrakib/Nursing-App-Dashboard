@@ -20,8 +20,8 @@ const nurseAPI = baseAPI.injectEndpoints({
 
     nurseReview: builder.mutation({
       query: ({ id, action }) => ({
-        url: `/api/v1/nurses/${id}/review/`,
-        method: "POST",
+        url: `/nurses/${id}/review/`,
+        method: "PATCH",
         body: { action },
       }),
       invalidatesTags: ["Nurse"],

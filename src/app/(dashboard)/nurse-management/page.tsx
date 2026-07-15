@@ -264,7 +264,9 @@ function DashboardContent() {
                           {nurse.email}
                         </div>
                       </td>
+
                       <td className='px-6 py-4'>{nurse.nurse_type}</td>
+
                       <td className='px-6 py-4'>
                         {formatDate(nurse.submitted_at)}
                       </td>
