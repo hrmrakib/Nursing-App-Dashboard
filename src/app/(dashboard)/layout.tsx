@@ -24,7 +24,7 @@ export default function DashboardLayout({
         <main className='flex-1 lg:ml-60 min-h-screen'>
           <div className='container mx-auto space-y-6'>
             {/* Top header */}
-            <div className='mt-12 lg:mt-0'>
+            <div className='mt-12 lg:mt-0 p-5'>
               <TopHeader />
             </div>
 

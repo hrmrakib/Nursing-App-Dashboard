@@ -3,18 +3,18 @@ import { RootState } from "@/redux/store";
 
 export function useAuth() {
   // Select the auth slice directly for cleaner access
-  const { user, token, profileLoading } = useSelector(
+  const { user, access, profileLoading } = useSelector(
     (state: RootState) => state.auth,
   );
 
   return {
     user,
-    token,
+    access,
     profileLoading,
 
-    isLoggedIn: !!user && !!token,
+    isLoggedIn: !!user && !!access,
 
-    isVerified: user?.is_email_verified ?? false,
+    isVerified: user?.is_active ?? false,
 
     isAdmin: user?.role === "admin",
   };

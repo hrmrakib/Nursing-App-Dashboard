@@ -1,22 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
-// Fixed to match your actual API response
+// Updated to perfectly match your actual API response data structure
 export type TUser = {
   id: number;
-  profile_pic: string | null;
   name: string;
   email: string;
   phone: string | null;
-  location: string | null;
-  delivery_address: string | null;
-  delivery_latitude: number | null;
-  delivery_longitude: number | null;
   role: string;
+  profile_picture: string | null; // Fixed from profile_pic
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  is_verified: boolean;
+  onboarding_complete: boolean; // Added from API
+  date_joined: string; // Fixed from created_at/updated_at
 };
 
 type TAuthState = {
@@ -43,15 +38,22 @@ const authSlice = createSlice({
       state.userToggle = !state.userToggle;
     },
 
-    // Matches the { access, refresh, user } shape from your login response
+    // Handles setting the user details
     setUser: (
       state,
-      action: PayloadAction<{ user: TUser; access: string; refresh: string }>,
+      action: PayloadAction<{
+        user: TUser;
+        access?: string | null;
+        refresh?: string | null;
+      }>,
     ) => {
       const { user, access, refresh } = action.payload;
       state.user = user;
-      state.access = access;
-      state.refresh = refresh;
+
+      // Only update tokens if they are passed in the payload (e.g., during login)
+      if (access !== undefined) state.access = access;
+      if (refresh !== undefined) state.refresh = refresh;
+
       state.profileLoading = false;
     },
 
@@ -60,7 +62,7 @@ const authSlice = createSlice({
       state.access = null;
       state.refresh = null;
       state.profileLoading = false;
-      // Clean up local storage if you aren't doing it in the component
+
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
     },
