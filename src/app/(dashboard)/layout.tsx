@@ -29,7 +29,7 @@ export default function DashboardLayout({
             </div>
 
             {/* Page content */}
-            {children}
+            <div className='p-5'>{children}</div>
           </div>
         </main>
       </div>

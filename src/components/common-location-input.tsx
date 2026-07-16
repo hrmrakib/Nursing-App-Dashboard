@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { MapPin, X } from "lucide-react";
 import toast from "react-hot-toast";
 
 interface LocationResult {
@@ -94,6 +94,10 @@ export default function CommonLocationInput({
         </label>
       )}
       <div className='relative'>
+        <MapPin
+          size={18}
+          className='absolute left-3 top-1/2 -translate-y-1/2 text-gray-400'
+        />
         <input
           ref={locationInputRef}
           placeholder={placeholder}
@@ -102,7 +106,7 @@ export default function CommonLocationInput({
             setLocation(e.target.value);
             onChange(null);
           }}
-          className={`bg-white! pr-10 border-gray-300 text-sm sm:text-base h-11 sm:h-11 rounded-md ${className} w-full pl-3 py-2 border outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
+          className={`bg-white! pr-8 border-gray-300 text-sm sm:text-base h-11 sm:h-11 rounded-md ${className} w-full pl-3 py-2 border outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
         />
         {location && (
           <button
