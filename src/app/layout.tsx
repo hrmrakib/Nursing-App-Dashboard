@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Providers from "@/redux/features/Providers";
 import AppInitializer from "@/components/AppInitializer/AppInitializer";
+import { Toaster } from "react-hot-toast";
 
 export const metadata: Metadata = {
   title: "IAC Staffing Dashboard",
@@ -18,6 +19,7 @@ export default function RootLayout({
     <html lang='en' className='h-full'>
       <body className='min-h-full bg-surface-alt'>
         <Providers>
+          <Toaster position='top-right' />
           <AppInitializer>{children}</AppInitializer>
         </Providers>
       </body>

@@ -8,8 +8,27 @@ const settingsAPI = baseAPI.injectEndpoints({
         method: "GET",
       }),
     }),
+
+    getSettingContent: builder.query({
+      query: () => ({
+        url: "/settings/",
+        method: "GET",
+      }),
+    }),
+
+    updateSettingContent: builder.mutation({
+      query: (data) => ({
+        url: "/admin/settings/update/",
+        method: "PATCH",
+        body: data,
+      }),
+    }),
   }),
 });
 
-export const { useGetProfileQuery } = settingsAPI;
+export const {
+  useGetProfileQuery,
+  useGetSettingContentQuery,
+  useUpdateSettingContentMutation,
+} = settingsAPI;
 export default settingsAPI;

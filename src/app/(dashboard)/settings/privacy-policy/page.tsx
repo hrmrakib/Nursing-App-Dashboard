@@ -1,92 +1,123 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import type Quill from "quill";
 
-/**
- * Privacy Policy page — static legal content.
- */
-export default function PrivacyPolicyPage() {
+import toast from "react-hot-toast";
+import {
+  useGetSettingContentQuery,
+  useUpdateSettingContentMutation,
+} from "@/redux/features/settings/settingsAPI";
+import { showToast } from "@/lib/toast";
+import { formatPerfectDateTime } from "@/utils/formatPerfectDateTime";
+
+const EditTermsAndConditions = () => {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const quillRef = useRef<Quill | null>(null);
+  const quillReadyRef = useRef(false);
+  const [content, setContent] = useState<string>("");
+
+  const { data } = useGetSettingContentQuery({});
+  const [updateAboutUsMutation, { isLoading: isUpdating }] =
+    useUpdateSettingContentMutation();
+
+  const existing = data?.data;
+
+  console.log("??????????", existing);
+
+  // Step 1: Init Quill once on mount
+  useEffect(() => {
+    if (quillReadyRef.current || typeof window === "undefined") return;
+
+    const init = async () => {
+      const { default: Quill } = await import("quill");
+      await import("quill/dist/quill.snow.css");
+
+      if (editorRef.current && !editorRef.current.querySelector(".ql-editor")) {
+        const quill = new Quill(editorRef.current, {
+          theme: "snow",
+          placeholder: "Enter your terms and conditions...",
+        });
+
+        quillRef.current = quill;
+        quillReadyRef.current = true;
+
+        quill.on("text-change", () => {
+          setContent(quill.root.innerHTML);
+        });
+      }
+    };
+
+    init();
+  }, []);
+
+  // Step 2: Once API data is ready AND Quill is ready, populate content
+  useEffect(() => {
+    if (!existing?.privacy_policy) return;
+
+    // Poll until quillRef is ready (handles async init timing)
+    const interval = setInterval(() => {
+      if (quillRef.current) {
+        quillRef.current.root.innerHTML = existing.privacy_policy;
+        setContent(existing.privacy_policy);
+        clearInterval(interval);
+      }
+    }, 50);
+
+    return () => clearInterval(interval);
+  }, [existing?.privacy_policy]);
+
+  const handleSubmit = async () => {
+    if (!existing) return;
+
+    if (existing?.privacy_policy == content) {
+      toast.error("Please, update terms and condition before save.");
+      return;
+    }
+
+    try {
+      const res = await updateAboutUsMutation({
+        privacy_policy: content,
+      }).unwrap();
+
+      if (res.status !== "success") throw new Error(res.message);
+      if (res?.status === "success") {
+        toast.success("Saved successfully!");
+      }
+    } catch {
+      toast.error("Save failed.");
+    }
+  };
+
   return (
-    <div className="animate-fade-in">
-      <div className="bg-surface rounded-xl border border-border shadow-card overflow-hidden">
-        {/* Header */}
-        <div className="px-6 sm:px-8 pt-6 pb-4 border-b border-border">
-          <Link
-            href="/settings"
-            className="inline-flex items-center gap-2 text-sm font-medium text-text-secondary
-                       hover:text-text-primary transition-colors"
-          >
-            <ArrowLeft size={18} />
-            <span className="text-lg font-bold text-text-primary">Privacy Policy</span>
-          </Link>
+    <div className='min-h-[7vh] max-w-full mx-auto flex flex-col justify-between gap-6'>
+      <p className='w-full text-sm'>
+        <span className='font-semibold'>Last updated:</span>{" "}
+        {formatPerfectDateTime(existing?.updated_at)}
+      </p>
+      <div className='space-y-6'>
+        <div className='h-auto border4 rounded-2xl'>
+          <div
+            ref={editorRef}
+            className='min-h-[35vh] bg-white text-base'
+            id='quill-editor'
+          />
         </div>
+      </div>
 
-        {/* Content */}
-        <div className="p-6 sm:p-8 max-w-3xl">
-          <div className="prose prose-sm text-text-secondary space-y-6">
-            <p className="text-sm leading-relaxed">
-              Last updated: July 1, 2026
-            </p>
-
-            <section className="space-y-3">
-              <h3 className="text-base font-bold text-text-primary">Information We Collect</h3>
-              <p className="text-sm leading-relaxed">
-                We collect information you provide directly to us, including your name, email address,
-                phone number, professional credentials, and employment history. We also automatically
-                collect certain technical information when you use our platform, such as IP addresses,
-                device identifiers, and usage patterns.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h3 className="text-base font-bold text-text-primary">How We Use Your Information</h3>
-              <p className="text-sm leading-relaxed">
-                Your information is used to provide and improve our staffing services, process applications,
-                verify credentials, facilitate shift assignments, communicate with you about your account
-                and services, and comply with legal obligations. We may also use aggregated, anonymized
-                data for analytics and service improvement.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h3 className="text-base font-bold text-text-primary">Data Sharing</h3>
-              <p className="text-sm leading-relaxed">
-                We share your information only with healthcare facilities you are assigned to, regulatory
-                bodies as required by law, and service providers who assist in operating our platform.
-                We never sell your personal information to third parties for marketing purposes.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h3 className="text-base font-bold text-text-primary">Data Security</h3>
-              <p className="text-sm leading-relaxed">
-                We implement industry-standard security measures including encryption, access controls,
-                and regular security audits to protect your personal and medical information. All data
-                is stored in HIPAA-compliant servers with continuous monitoring and threat detection.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h3 className="text-base font-bold text-text-primary">Your Rights</h3>
-              <p className="text-sm leading-relaxed">
-                You have the right to access, correct, or delete your personal information at any time.
-                You may also request a copy of your data or restrict its processing. To exercise these
-                rights, please contact our support team through the Messages section or at
-                privacy@iacstaffing.com.
-              </p>
-            </section>
-
-            <section className="space-y-3">
-              <h3 className="text-base font-bold text-text-primary">Contact Us</h3>
-              <p className="text-sm leading-relaxed">
-                If you have questions about this Privacy Policy, please contact us at
-                privacy@iacstaffing.com or through the in-app messaging system.
-              </p>
-            </section>
-          </div>
+      <div className='w-full'>
+        <div className='pt-2'>
+          <button
+            onClick={handleSubmit}
+            disabled={isUpdating}
+            className='min-w-full block px-4 py-3 bg-[#d08726] hover:bg-[#b8751d] text-white font-medium rounded-xl transition-colors disabled:opacity-70 cursor-pointer disabled:cursor-not-allowed'
+          >
+            {isUpdating ? "Saving..." : "Save Changes"}
+          </button>
         </div>
       </div>
     </div>
   );
-}
+};
+
+export default EditTermsAndConditions;
