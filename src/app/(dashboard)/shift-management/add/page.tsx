@@ -1,348 +1,326 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  ArrowLeft,
-  Upload,
-  MapPin,
-  Clock,
-  ChevronDown,
-  Loader2,
-  ImagePlus,
-} from "lucide-react";
+import { ArrowLeft, ChevronDown, Loader2 } from "lucide-react";
 import { useToast } from "@/components/toast";
-import type {
-  NurseType,
-  RepeatOption,
-  PatientRatio,
-  ExperienceRequired,
-  DressCode,
-} from "@/lib/types";
+import type { ShiftFormData } from "@/lib/types";
 import {
-  useGetAllFacilitiesQuery,
-  useGetSingleFacilityQuery,
-} from "@/redux/features/facilities/facilitiesAPI";
+  useGetSingleShiftAssignmentQuery,
+  useCreateShiftAssignmentMutation,
+  useUpdateShiftAssignmentMutation,
+} from "@/redux/features/shifts/shiftsAPI";
+import { useGetAllFacilitiesQuery } from "@/redux/features/facilities/facilitiesAPI";
 
-// ─── Select option data (matching the dropdown screenshots) ──
-const nurseTypeOptions: NurseType[] = ["CNA", "LPN", "RN"];
-const repeatOptions: RepeatOption[] = [
-  "Does Not Repeat",
-  "Daily",
-  "Weekly",
-  "Monthly",
-];
-const patientRatioOptions: PatientRatio[] = [
-  "1:1",
-  "1:2",
-  "1:3",
-  "1:4",
-  "1:5",
-  "1:6",
-];
-const experienceOptions: ExperienceRequired[] = [
-  "No Experience",
-  "6 Months",
-  "1 Year",
-  "2 Years",
-  "3+ Years",
-  "5+ Years",
-];
-const dressCodeOptions: DressCode[] = [
-  "Navy Scrubs",
-  "Black Scrubs",
-  "White Scrubs",
-  "Facility Uniform",
-  "Business Casual",
+interface Option {
+  value: string;
+  label: string;
+}
+
+const professionOptions: Option[] = [
+  { value: "CNA", label: "Certified Nursing Assistant (CNA)" },
+  { value: "LPN", label: "Licensed Practical Nurse (LPN)" },
+  { value: "RN", label: "Registered Nurse (RN)" },
 ];
 
-// ─── Form validation errors ──────────────────────────────────
+const shiftTypeOptions: Option[] = [
+  { value: "days", label: "Days" },
+  { value: "nights", label: "Nights" },
+  { value: "evenings", label: "Evenings" },
+  { value: "overnight", label: "Overnight" },
+];
+
+const payFrequencyOptions: Option[] = [
+  { value: "daily", label: "Daily" },
+  { value: "weekly", label: "Weekly" },
+  { value: "biweekly", label: "Biweekly" },
+];
+
+const assignmentTypeOptions: Option[] = [
+  { value: "staff_nurse", label: "Staff Nurse" },
+  { value: "charge_nurse", label: "Charge Nurse" },
+  { value: "float_pool", label: "Float Pool" },
+];
+
 interface FormErrors {
-  facilityName?: string;
-  location?: string;
-  unitDepartment?: string;
-  nurseType?: string;
-  date?: string;
-  timeFrom?: string;
-  timeTo?: string;
-  payRate?: string;
-  dressCode?: string;
+  facility?: string;
+  department?: string;
+  profession?: string;
+  shift_date?: string;
+  start_time?: string;
+  end_time?: string;
+  pay_rate?: string;
+  shift_type?: string;
 }
 
-export interface IFacility {
-  id: number;
-  image: string;
-  shift_count: number;
-  name: string;
-  address: string;
-  city: string;
-  state: string;
-  zip_code: string;
-  latitude: string;
-  longitude: string;
-  phone: string;
-  email: string;
-  created_at: string;
-}
+const initialForm: ShiftFormData = {
+  facility: 0,
+  profession: "RN",
+  department: "",
+  shift_date: "",
+  start_time: "",
+  end_time: "",
+  shift_type: "days",
+  required_nurses: 1,
+  pay_rate: "",
+  pay_frequency: "weekly",
+  assignment_type: "staff_nurse",
+  patient_ratio: "",
+  mandatory_float: false,
+  experience_required_years: 0,
+  dress_code: "",
+  notes: "",
+};
 
-/**
- * Add Shift page — full form for publishing a new shift.
- * Matches the Figma design with all fields, selects, radio buttons, and validation.
- */
 export default function AddShiftPage() {
   const searchParams = useSearchParams();
-  const facilityId = searchParams.get("facilityId");
+  const editId = searchParams.get("edit");
+  const isEditMode = !!editId;
+
   const router = useRouter();
   const { addToast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // ─── Form state ────────────────────────────────────────────
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [facilityName, setFacilityName] = useState("");
-  const [location, setLocation] = useState("");
-  const [unitDepartment, setUnitDepartment] = useState("");
-  const [nurseType, setNurseType] = useState<NurseType | "">("");
-  const [date, setDate] = useState("");
-  const [timeFrom, setTimeFrom] = useState("");
-  const [timeTo, setTimeTo] = useState("");
-  const [repeat, setRepeat] = useState<RepeatOption>("Does Not Repeat");
-  const [payRate, setPayRate] = useState("");
-  const [numberOfOpenings, setNumberOfOpenings] = useState(1);
-  const [patientRatio, setPatientRatio] = useState<PatientRatio>("1:1");
-  const [experienceRequired, setExperienceRequired] =
-    useState<ExperienceRequired>("No Experience");
-  const [mandatoryFloat, setMandatoryFloat] = useState(true);
-  const [dressCode, setDressCode] = useState<DressCode | "">("");
-
+  const [form, setForm] = useState<ShiftFormData>(initialForm);
   const [errors, setErrors] = useState<FormErrors>({});
-  const [submitting, setSubmitting] = useState(false);
 
-  const { data: facilityData } = useGetSingleFacilityQuery(facilityId || "", {
-    skip: !facilityId,
-  });
   const { data: allFacilitiesData } = useGetAllFacilitiesQuery(undefined);
+  const facilities: { id: number; name: string }[] =
+    allFacilitiesData?.data ?? [];
 
-  const facilities: IFacility[] = allFacilitiesData?.data || [];
-  const facility = facilityData?.data as IFacility | undefined;
+  const { data: existingShiftData, isLoading: isLoadingShift } =
+    useGetSingleShiftAssignmentQuery(editId as string, { skip: !editId });
 
-  console.log({ facilityId });
+  const [createShift, { isLoading: isCreating }] =
+    useCreateShiftAssignmentMutation();
+  const [updateShift, { isLoading: isUpdating }] =
+    useUpdateShiftAssignmentMutation();
+  const submitting = isCreating || isUpdating;
 
-  // ─── Image upload handler ──────────────────────────────────
-  const handleImageUpload = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onloadend = () => setImagePreview(reader.result as string);
-        reader.readAsDataURL(file);
-      }
-    },
-    [],
-  );
+  useEffect(() => {
+    if (existingShiftData?.data) {
+      const s = existingShiftData.data;
+      setForm({
+        facility: s.facility,
+        profession: s.profession,
+        department: s.department,
+        shift_date: s.shift_date,
+        start_time: s.start_time?.slice(0, 5) ?? "",
+        end_time: s.end_time?.slice(0, 5) ?? "",
+        shift_type: s.shift_type,
+        required_nurses: s.required_nurses,
+        pay_rate: s.pay_rate,
+        pay_frequency: s.pay_frequency,
+        assignment_type: s.assignment_type,
+        patient_ratio: s.patient_ratio ?? "",
+        mandatory_float: s.mandatory_float,
+        experience_required_years: s.experience_required_years,
+        dress_code: s.dress_code ?? "",
+        notes: s.notes ?? "",
+      });
+    }
+  }, [existingShiftData]);
 
-  // ─── Validation ────────────────────────────────────────────
+  const updateField = <K extends keyof ShiftFormData>(
+    key: K,
+    value: ShiftFormData[K],
+  ) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+
   const validate = useCallback((): boolean => {
     const newErrors: FormErrors = {};
-
-    if (!facilityName.trim())
-      newErrors.facilityName = "Facility name is required";
-    if (!location.trim()) newErrors.location = "Location is required";
-    if (!unitDepartment.trim())
-      newErrors.unitDepartment = "Unit / Department is required";
-    if (!nurseType) newErrors.nurseType = "Please select a nurse type";
-    if (!date) newErrors.date = "Date is required";
-    if (!timeFrom) newErrors.timeFrom = "Start time is required";
-    if (!timeTo) newErrors.timeTo = "End time is required";
-    if (!payRate || isNaN(Number(payRate)) || Number(payRate) <= 0)
-      newErrors.payRate = "Enter a valid pay rate";
-    if (!dressCode) newErrors.dressCode = "Please select a dress code";
+    if (!form.facility) newErrors.facility = "Please select a facility";
+    if (!form.department.trim())
+      newErrors.department = "Unit / Department is required";
+    if (!form.profession) newErrors.profession = "Please select a profession";
+    if (!form.shift_date) newErrors.shift_date = "Date is required";
+    if (!form.start_time) newErrors.start_time = "Start time is required";
+    if (!form.end_time) newErrors.end_time = "End time is required";
+    if (!form.shift_type) newErrors.shift_type = "Please select a shift type";
+    if (
+      !form.pay_rate ||
+      isNaN(Number(form.pay_rate)) ||
+      Number(form.pay_rate) <= 0
+    )
+      newErrors.pay_rate = "Enter a valid pay rate";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [
-    facilityName,
-    location,
-    unitDepartment,
-    nurseType,
-    date,
-    timeFrom,
-    timeTo,
-    payRate,
-    dressCode,
-  ]);
+  }, [form]);
 
-  // ─── Submit handler ────────────────────────────────────────
-  const handlePublish = useCallback(async () => {
+  const handleSubmit = useCallback(async () => {
     if (!validate()) return;
 
-    setSubmitting(true);
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    setSubmitting(false);
-    addToast("Shift published successfully!", "success");
-    router.push("/shift-management");
-  }, [validate, addToast, router]);
+    const payload: ShiftFormData = {
+      ...form,
+      start_time:
+        form.start_time.length === 5
+          ? `${form.start_time}:00`
+          : form.start_time,
+      end_time:
+        form.end_time.length === 5 ? `${form.end_time}:00` : form.end_time,
+    };
 
-  const handleCancel = useCallback(() => {
-    router.push("/shift-management");
-  }, [router]);
+    try {
+      if (isEditMode && editId) {
+        await updateShift({ id: editId, data: payload }).unwrap();
+        addToast("Shift updated successfully!", "success");
+      } else {
+        await createShift(payload).unwrap();
+        addToast("Shift published successfully!", "success");
+      }
+      router.push("/shift-management");
+    } catch (err) {
+      console.error(err);
+      addToast(
+        isEditMode
+          ? "Failed to update shift. Please try again."
+          : "Failed to publish shift. Please try again.",
+        "error",
+      );
+    }
+  }, [
+    form,
+    validate,
+    isEditMode,
+    editId,
+    updateShift,
+    createShift,
+    addToast,
+    router,
+  ]);
+
+  const handleCancel = useCallback(
+    () => router.push("/shift-management"),
+    [router],
+  );
+
+  if (isEditMode && isLoadingShift) {
+    return (
+      <div className='flex items-center justify-center py-24'>
+        <Loader2 size={24} className='animate-spin text-primary' />
+      </div>
+    );
+  }
 
   return (
     <div className='animate-fade-in'>
       <div className='bg-surface rounded-xl border border-border shadow-card p-6 sm:p-8'>
-        {/* ── Back Navigation ─────────────────────────────────── */}
         <Link
           href='/shift-management'
-          className='inline-flex items-center gap-2 text-sm font-medium text-text-secondary
-                     hover:text-text-primary transition-colors mb-6'
+          className='inline-flex items-center gap-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors mb-6'
         >
           <ArrowLeft size={18} />
-          Add shift
+          {isEditMode ? "Edit shift" : "Add shift"}
         </Link>
 
-        {/* ── Form ────────────────────────────────────────────── */}
         <div className='max-w-md space-y-5'>
-          {/* Facility Image Upload */}
           <div>
-            <label className='text-sm font-semibold text-text-primary block mb-2'>
-              Facility Image
+            <label className='text-sm font-semibold text-text-primary block mb-1.5'>
+              Facility
             </label>
-            <button
-              type='button'
-              onClick={() => fileInputRef.current?.click()}
-              className='w-full h-28 rounded-xl border-2 border-dashed border-border
-                         bg-surface-alt hover:bg-surface-hover transition-colors
-                         flex flex-col items-center justify-center gap-1.5 text-text-muted
-                         hover:text-text-secondary overflow-hidden'
-            >
-              {imagePreview ? (
-                <img
-                  src={imagePreview}
-                  alt='Facility preview'
-                  className='w-full h-full object-cover'
-                />
-              ) : (
-                <>
-                  <ImagePlus size={20} />
-                  <span className='text-xs font-medium text-accent-blue'>
-                    Upload Image
-                  </span>
-                </>
-              )}
-            </button>
-            <input
-              ref={fileInputRef}
-              type='file'
-              accept='image/*'
-              onChange={handleImageUpload}
-              className='hidden'
-            />
+            <div className='relative'>
+              <select
+                value={form.facility || ""}
+                onChange={(e) =>
+                  updateField("facility", Number(e.target.value))
+                }
+                className={`w-full px-4 py-2.5 text-sm rounded-lg border bg-surface text-text-primary appearance-none cursor-pointer
+                           focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all
+                           ${!form.facility ? "text-text-muted" : ""} ${errors.facility ? "border-accent-red" : "border-border"}`}
+              >
+                <option value='' disabled>
+                  Select facility
+                </option>
+                {facilities.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown
+                size={16}
+                className='absolute right-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none'
+              />
+            </div>
+            {errors.facility && (
+              <p className='text-xs text-accent-red mt-1'>{errors.facility}</p>
+            )}
           </div>
 
-          {/* Facility Name */}
-          <FormInput
-            label='Facility Name'
-            placeholder='Enter facility name'
-            disabled={!!facilityId} // Disable if facilityId is present
-            value={facility?.name ?? ""}
-            // value={facilityName}
-            onChange={setFacilityName}
-            error={errors.facilityName}
-          />
-
-          {/* Location */}
-          <FormInput
-            label='Location'
-            placeholder='Enter location'
-            value={location}
-            onChange={setLocation}
-            error={errors.location}
-            icon={<MapPin size={16} className='text-primary' />}
-          />
-
-          {/* Unit / Department */}
           <FormInput
             label='Unit / Department'
-            placeholder='Enter unit / department'
-            value={unitDepartment}
-            onChange={setUnitDepartment}
-            error={errors.unitDepartment}
+            placeholder='e.g. ICU, ER'
+            value={form.department}
+            onChange={(v) => updateField("department", v)}
+            error={errors.department}
           />
 
-          {/* Nurse Type */}
           <FormSelect
-            label='Nurse Type'
-            placeholder='Select nurse type'
-            value={nurseType}
-            onChange={(v) => setNurseType(v as NurseType)}
-            options={nurseTypeOptions}
-            error={errors.nurseType}
+            label='Profession'
+            placeholder='Select profession'
+            value={form.profession}
+            onChange={(v) =>
+              updateField("profession", v as ShiftFormData["profession"])
+            }
+            options={professionOptions}
+            error={errors.profession}
           />
 
-          {/* Date */}
           <div>
             <label className='text-sm font-semibold text-text-primary block mb-1.5'>
               Date
             </label>
             <input
               type='date'
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className={`w-full px-4 py-2.5 text-sm rounded-lg border bg-surface text-text-primary
-                         focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-                         transition-all ${errors.date ? "border-accent-red" : "border-border"}`}
+              value={form.shift_date}
+              onChange={(e) => updateField("shift_date", e.target.value)}
+              className={`w-full px-4 py-2.5 text-sm rounded-lg border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${errors.shift_date ? "border-accent-red" : "border-border"}`}
             />
-            {errors.date && (
-              <p className='text-xs text-accent-red mt-1'>{errors.date}</p>
+            {errors.shift_date && (
+              <p className='text-xs text-accent-red mt-1'>
+                {errors.shift_date}
+              </p>
             )}
           </div>
 
-          {/* Time Period */}
           <div>
             <label className='text-sm font-semibold text-text-primary block mb-1.5'>
               Time Period
             </label>
             <div className='flex items-center gap-3'>
-              <div className='relative flex-1'>
-                <input
-                  type='time'
-                  value={timeFrom}
-                  onChange={(e) => setTimeFrom(e.target.value)}
-                  placeholder='From'
-                  className={`w-full px-4 py-2.5 text-sm rounded-lg border bg-surface text-text-primary
-                             focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-                             transition-all ${errors.timeFrom ? "border-accent-red" : "border-border"}`}
-                />
-              </div>
-              <div className='relative flex-1'>
-                <input
-                  type='time'
-                  value={timeTo}
-                  onChange={(e) => setTimeTo(e.target.value)}
-                  placeholder='To'
-                  className={`w-full px-4 py-2.5 text-sm rounded-lg border bg-surface text-text-primary
-                             focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-                             transition-all ${errors.timeTo ? "border-accent-red" : "border-border"}`}
-                />
-              </div>
+              <input
+                type='time'
+                value={form.start_time}
+                onChange={(e) => updateField("start_time", e.target.value)}
+                className={`flex-1 px-4 py-2.5 text-sm rounded-lg border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${errors.start_time ? "border-accent-red" : "border-border"}`}
+              />
+              <input
+                type='time'
+                value={form.end_time}
+                onChange={(e) => updateField("end_time", e.target.value)}
+                className={`flex-1 px-4 py-2.5 text-sm rounded-lg border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${errors.end_time ? "border-accent-red" : "border-border"}`}
+              />
             </div>
-            {(errors.timeFrom || errors.timeTo) && (
+            {(errors.start_time || errors.end_time) && (
               <p className='text-xs text-accent-red mt-1'>
-                {errors.timeFrom || errors.timeTo}
+                {errors.start_time || errors.end_time}
               </p>
             )}
           </div>
 
-          {/* Repeat */}
           <FormSelect
-            label='Repeat'
-            value={repeat}
-            onChange={(v) => setRepeat(v as RepeatOption)}
-            options={repeatOptions}
+            label='Shift Type'
+            placeholder='Select shift type'
+            value={form.shift_type}
+            onChange={(v) =>
+              updateField("shift_type", v as ShiftFormData["shift_type"])
+            }
+            options={shiftTypeOptions}
+            error={errors.shift_type}
           />
 
-          {/* Pay Rate */}
           <div>
             <label className='text-sm font-semibold text-text-primary block mb-1.5'>
               Pay Rate
@@ -350,58 +328,85 @@ export default function AddShiftPage() {
             <div className='relative'>
               <input
                 type='number'
-                value={payRate}
-                onChange={(e) => setPayRate(e.target.value)}
+                value={form.pay_rate}
+                onChange={(e) => updateField("pay_rate", e.target.value)}
                 placeholder='0'
                 min='0'
                 step='0.01'
-                className={`w-full px-4 py-2.5 text-sm rounded-lg border bg-surface text-text-primary
-                           text-center focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary
-                           transition-all ${errors.payRate ? "border-accent-red" : "border-border"}`}
+                className={`w-full px-4 py-2.5 text-sm rounded-lg border bg-surface text-text-primary text-center focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${errors.pay_rate ? "border-accent-red" : "border-border"}`}
               />
               <span className='absolute right-4 top-1/2 -translate-y-1/2 text-sm text-text-muted'>
                 / hr
               </span>
             </div>
-            {errors.payRate && (
-              <p className='text-xs text-accent-red mt-1'>{errors.payRate}</p>
+            {errors.pay_rate && (
+              <p className='text-xs text-accent-red mt-1'>{errors.pay_rate}</p>
             )}
           </div>
 
-          {/* Number of Openings */}
+          <FormSelect
+            label='Pay Frequency'
+            value={form.pay_frequency}
+            onChange={(v) =>
+              updateField("pay_frequency", v as ShiftFormData["pay_frequency"])
+            }
+            options={payFrequencyOptions}
+          />
+          <FormSelect
+            label='Assignment Type'
+            value={form.assignment_type}
+            onChange={(v) =>
+              updateField(
+                "assignment_type",
+                v as ShiftFormData["assignment_type"],
+              )
+            }
+            options={assignmentTypeOptions}
+          />
+
           <div>
             <label className='text-sm font-semibold text-text-primary block mb-1.5'>
               Number of Openings
             </label>
             <input
               type='number'
-              value={numberOfOpenings}
+              value={form.required_nurses}
               onChange={(e) =>
-                setNumberOfOpenings(Math.max(1, parseInt(e.target.value) || 1))
+                updateField(
+                  "required_nurses",
+                  Math.max(1, parseInt(e.target.value) || 1),
+                )
               }
               min='1'
-              className='w-full px-4 py-2.5 text-sm rounded-lg border border-border bg-surface text-text-primary
-                         focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all'
+              className='w-full px-4 py-2.5 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all'
             />
           </div>
 
-          {/* Patient Ratio */}
-          <FormSelect
+          <FormInput
             label='Patient Ratio'
-            value={patientRatio}
-            onChange={(v) => setPatientRatio(v as PatientRatio)}
-            options={patientRatioOptions}
+            placeholder='e.g. 1:5'
+            value={form.patient_ratio ?? ""}
+            onChange={(v) => updateField("patient_ratio", v)}
           />
 
-          {/* Experience Required */}
-          <FormSelect
-            label='Experience Required'
-            value={experienceRequired}
-            onChange={(v) => setExperienceRequired(v as ExperienceRequired)}
-            options={experienceOptions}
-          />
+          <div>
+            <label className='text-sm font-semibold text-text-primary block mb-1.5'>
+              Experience Required (years)
+            </label>
+            <input
+              type='number'
+              min='0'
+              value={form.experience_required_years ?? 0}
+              onChange={(e) =>
+                updateField(
+                  "experience_required_years",
+                  Math.max(0, parseInt(e.target.value) || 0),
+                )
+              }
+              className='w-full px-4 py-2.5 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all'
+            />
+          </div>
 
-          {/* Mandatory Float */}
           <div>
             <label className='text-sm font-semibold text-text-primary block mb-2'>
               Mandatory Float
@@ -411,10 +416,9 @@ export default function AddShiftPage() {
                 <input
                   type='radio'
                   name='mandatoryFloat'
-                  checked={mandatoryFloat === true}
-                  onChange={() => setMandatoryFloat(true)}
-                  className='w-4 h-4 text-primary border-border focus:ring-primary/20
-                             accent-primary'
+                  checked={form.mandatory_float === true}
+                  onChange={() => updateField("mandatory_float", true)}
+                  className='w-4 h-4 text-primary border-border focus:ring-primary/20 accent-primary'
                 />
                 <span className='text-sm text-text-primary group-hover:text-primary transition-colors'>
                   Yes
@@ -424,10 +428,9 @@ export default function AddShiftPage() {
                 <input
                   type='radio'
                   name='mandatoryFloat'
-                  checked={mandatoryFloat === false}
-                  onChange={() => setMandatoryFloat(false)}
-                  className='w-4 h-4 text-primary border-border focus:ring-primary/20
-                             accent-primary'
+                  checked={form.mandatory_float === false}
+                  onChange={() => updateField("mandatory_float", false)}
+                  className='w-4 h-4 text-primary border-border focus:ring-primary/20 accent-primary'
                 />
                 <span className='text-sm text-text-primary group-hover:text-primary transition-colors'>
                   No
@@ -436,35 +439,39 @@ export default function AddShiftPage() {
             </div>
           </div>
 
-          {/* Dress Code */}
-          <FormSelect
+          <FormInput
             label='Dress Code'
-            placeholder='Select one'
-            value={dressCode}
-            onChange={(v) => setDressCode(v as DressCode)}
-            options={dressCodeOptions}
-            error={errors.dressCode}
+            placeholder='e.g. Navy Scrubs'
+            value={form.dress_code ?? ""}
+            onChange={(v) => updateField("dress_code", v)}
           />
 
-          {/* ── Action Buttons ─────────────────────────────────── */}
+          <div>
+            <label className='text-sm font-semibold text-text-primary block mb-1.5'>
+              Notes
+            </label>
+            <textarea
+              value={form.notes ?? ""}
+              onChange={(e) => updateField("notes", e.target.value)}
+              rows={3}
+              placeholder='Any additional notes for this shift'
+              className='w-full px-4 py-2.5 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none'
+            />
+          </div>
+
           <div className='space-y-3 pt-4'>
             <button
-              onClick={handlePublish}
+              onClick={handleSubmit}
               disabled={submitting}
-              className='w-full py-3 rounded-xl bg-primary text-white text-sm font-semibold
-                         hover:bg-primary-light transition-all duration-200
-                         disabled:opacity-60 disabled:cursor-not-allowed
-                         flex items-center justify-center gap-2'
+              className='w-full py-3 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary-light transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2'
             >
               {submitting && <Loader2 size={16} className='animate-spin' />}
-              Publish Shift
+              {isEditMode ? "Save Changes" : "Publish Shift"}
             </button>
             <button
               onClick={handleCancel}
               disabled={submitting}
-              className='w-full py-3 rounded-xl bg-surface text-primary text-sm font-semibold
-                         border border-primary/30 hover:bg-primary/5 transition-all duration-200
-                         disabled:opacity-60 disabled:cursor-not-allowed'
+              className='w-full py-3 rounded-xl bg-surface text-primary text-sm font-semibold border border-primary/30 hover:bg-primary/5 transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed'
             >
               Cancel
             </button>
@@ -475,56 +482,36 @@ export default function AddShiftPage() {
   );
 }
 
-// ─── Reusable Form Sub-components ────────────────────────────
-
-/** Text input field */
 function FormInput({
   label,
   placeholder,
   value,
   onChange,
   error,
-  icon,
-  disabled,
 }: {
   label: string;
   placeholder: string;
   value: string;
   onChange: (value: string) => void;
   error?: string;
-  icon?: React.ReactNode;
-  disabled?: boolean;
 }) {
   return (
     <div>
       <label className='text-sm font-semibold text-text-primary block mb-1.5'>
         {label}
       </label>
-      <div className='relative'>
-        <input
-          type='text'
-          value={value}
-          disabled={disabled}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          className={`w-full px-4 py-2.5 text-sm rounded-lg border bg-surface text-text-primary
-                     placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/20
-                     focus:border-primary transition-all
-                     ${icon ? "pr-10" : ""}
-                     ${error ? "border-accent-red" : "border-border"}`}
-        />
-        {icon && (
-          <span className='absolute right-3 top-1/2 -translate-y-1/2'>
-            {icon}
-          </span>
-        )}
-      </div>
+      <input
+        type='text'
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={`w-full px-4 py-2.5 text-sm rounded-lg border bg-surface text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${error ? "border-accent-red" : "border-border"}`}
+      />
       {error && <p className='text-xs text-accent-red mt-1'>{error}</p>}
     </div>
   );
 }
 
-/** Select dropdown */
 function FormSelect({
   label,
   placeholder,
@@ -537,7 +524,7 @@ function FormSelect({
   placeholder?: string;
   value: string;
   onChange: (value: string) => void;
-  options: string[];
+  options: Option[];
   error?: string;
 }) {
   return (
@@ -549,11 +536,7 @@ function FormSelect({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`w-full px-4 py-2.5 text-sm rounded-lg border bg-surface text-text-primary
-                     appearance-none cursor-pointer focus:outline-none focus:ring-2
-                     focus:ring-primary/20 focus:border-primary transition-all
-                     ${!value ? "text-text-muted" : ""}
-                     ${error ? "border-accent-red" : "border-border"}`}
+          className={`w-full px-4 py-2.5 text-sm rounded-lg border bg-surface text-text-primary appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all ${!value ? "text-text-muted" : ""} ${error ? "border-accent-red" : "border-border"}`}
         >
           {placeholder && (
             <option value='' disabled>
@@ -561,8 +544,8 @@ function FormSelect({
             </option>
           )}
           {options.map((opt) => (
-            <option key={opt} value={opt}>
-              {opt}
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
             </option>
           ))}
         </select>

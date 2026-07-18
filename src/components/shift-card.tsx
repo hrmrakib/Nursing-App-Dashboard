@@ -1,100 +1,170 @@
 "use client";
 
-import { MapPin, Calendar } from "lucide-react";
-import type { ShiftCard as ShiftCardType } from "@/lib/types";
+import { useState, useRef, useEffect } from "react";
+import {
+  MoreVertical,
+  Pencil,
+  Trash2,
+  Clock,
+  Users,
+  AlertCircle,
+} from "lucide-react";
+import type { Shift } from "@/lib/types";
+
+const statusStyles: Record<string, string> = {
+  OPEN: "bg-green-100 text-green-700",
+  ASSIGNED: "bg-blue-100 text-blue-700",
+  COMPLETED: "bg-gray-100 text-gray-600",
+  CANCELLED: "bg-red-100 text-red-700",
+};
 
 interface ShiftCardProps {
-  shift: ShiftCardType;
-  onClick: (shift: ShiftCardType) => void;
+  shift: Shift;
+  onClick?: (shift: Shift) => void;
+  onEdit?: (shift: Shift) => void;
+  onDelete?: (shift: Shift) => void;
 }
 
-/**
- * ShiftCard — card component for the shift management grid.
- * Shows a facility image, name, location, date/time, and pay rate.
- * Clicking opens the shift detail modal.
- */
-export default function ShiftCard({ shift, onClick }: ShiftCardProps) {
+export default function ShiftCardComponent({
+  shift,
+  onClick,
+  onEdit,
+  onDelete,
+}: ShiftCardProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const fmt = (t: string) => t.slice(0, 5);
+
+  const imageUrl = shift.facility?.image ?? shift.facility_image ?? null;
+  const titleLine =
+    [shift.profession, shift.department].filter(Boolean).join(" · ") ||
+    shift.facility?.name ||
+    "Shift";
+
   return (
-    <button
-      onClick={() => onClick(shift)}
+    <div
       className='bg-surface rounded-xl border border-border shadow-card overflow-hidden
-                 text-left w-full hover:shadow-card-hover transition-all duration-300
-                 group animate-fade-in'
+                 hover:shadow-md transition-shadow cursor-pointer relative'
+      onClick={() => onClick?.(shift)}
     >
-      {/* Facility Image */}
-      <div className='relative h-40 sm:h-44 bg-linear-to-br from-blue-50 to-slate-100 overflow-hidden'>
-        {/* Placeholder medical building illustration */}
-        <div className='absolute inset-0 flex items-center justify-center'>
-          <div className='relative w-full h-full'>
-            {/* Sky */}
-            <div className='absolute inset-0 bg-linear-to-b from-sky-200 via-sky-100 to-sky-50' />
-            {/* Buildings */}
-            <div className='absolute bottom-0 left-0 right-0 flex items-end justify-center gap-1 px-4'>
-              {/* Left building */}
-              <div className='w-1/4 h-24 bg-linear-to-b from-sky-300 to-sky-400 rounded-t-sm relative'>
-                <div className='absolute inset-2 grid grid-cols-3 gap-0.5'>
-                  {Array.from({ length: 12 }).map((_, i) => (
-                    <div key={i} className='bg-sky-200/60 rounded-[1px]' />
-                  ))}
-                </div>
-              </div>
-              {/* Center building (main) */}
-              <div className='w-2/5 h-32 bg-linear-to-b from-blue-200 to-blue-300 rounded-t-sm relative'>
-                <div className='absolute inset-2 grid grid-cols-4 gap-0.5'>
-                  {Array.from({ length: 20 }).map((_, i) => (
-                    <div key={i} className='bg-blue-100/60 rounded-[1px]' />
-                  ))}
-                </div>
-                {/* Red cross medical symbol */}
-                <div className='absolute top-2 right-2 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow'>
-                  <span className='text-red-500 text-xs font-bold'>✚</span>
-                </div>
-              </div>
-              {/* Right building */}
-              <div className='w-1/4 h-28 bg-linear-to-b from-slate-200 to-slate-300 rounded-t-sm relative'>
-                <div className='absolute inset-2 grid grid-cols-3 gap-0.5'>
-                  {Array.from({ length: 15 }).map((_, i) => (
-                    <div key={i} className='bg-slate-100/60 rounded-[1px]' />
-                  ))}
-                </div>
-              </div>
-            </div>
+      <div className='h-32 bg-surface-alt overflow-hidden'>
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt='Facility'
+            className='w-full h-full object-cover'
+            width={400}
+            height={200}
+          />
+        ) : (
+          <div className='w-full h-full flex items-center justify-center text-text-muted text-xs'>
+            No image
           </div>
-        </div>
-
-        {/* Hover overlay */}
-        <div className='absolute inset-0 bg-primary/0 group-hover:bg-primary/10 transition-colors duration-300' />
+        )}
       </div>
 
-      {/* Card Content */}
       <div className='p-4 space-y-2'>
-        {/* Facility Name */}
-        <h3 className='text-sm font-bold text-text-primary group-hover:text-primary transition-colors'>
-          {shift.facilityName}
-        </h3>
-
-        {/* Location */}
-        <div className='flex items-center gap-1.5 text-text-secondary'>
-          <MapPin size={13} className='shrink-0 text-text-muted' />
-          <span className='text-xs'>{shift.location}</span>
+        <div className='flex items-start justify-between gap-2'>
+          <div>
+            <p className='font-semibold text-sm text-text-primary'>
+              {titleLine}
+            </p>
+            {shift.facility?.name && (
+              <p className='text-xs text-text-secondary'>
+                {shift.facility.name}
+              </p>
+            )}
+            <p className='text-xs text-text-muted'>{shift.shift_date}</p>
+          </div>
+          {shift.status && (
+            <span
+              className={`text-[10px] font-medium px-2 py-1 rounded-full whitespace-nowrap ${
+                statusStyles[shift.status] ?? "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {shift.status}
+            </span>
+          )}
         </div>
 
-        {/* Date + Time */}
-        <div className='flex items-center gap-1.5 text-text-secondary'>
-          <Calendar size={13} className='shrink-0 text-text-muted' />
-          <span className='text-xs'>
-            {shift.date} • {shift.timeFrom} - {shift.timeTo}
-          </span>
+        <div className='flex items-center gap-1.5 text-xs text-text-muted'>
+          <Clock size={12} />
+          {fmt(shift.start_time)} – {fmt(shift.end_time)}
         </div>
 
-        {/* Pay Rate */}
-        <div className='flex items-center gap-1'>
-          <span className='text-base font-bold text-primary'>
-            ${shift.payRate}
-          </span>
-          <span className='text-xs text-text-muted'>/hr</span>
+        {typeof shift.required_nurses === "number" && (
+          <div className='flex items-center gap-1.5 text-xs text-text-muted'>
+            <Users size={12} />
+            {shift.required_nurses} nurse{shift.required_nurses > 1 ? "s" : ""}{" "}
+            needed
+            {shift.is_emergency && (
+              <span className='inline-flex items-center gap-1 text-accent-red font-medium ml-1'>
+                <AlertCircle size={12} /> Urgent
+              </span>
+            )}
+          </div>
+        )}
+
+        <div className='flex items-center justify-between pt-1'>
+          <p className='text-sm font-semibold text-primary'>
+            ${shift.pay_rate}/hr
+          </p>
+          {typeof shift.estimated_pay === "number" && (
+            <p className='text-xs text-text-muted'>
+              Est. ${shift.estimated_pay.toFixed(2)}
+            </p>
+          )}
         </div>
       </div>
-    </button>
+
+      <div
+        className='absolute top-3 right-3'
+        ref={menuRef}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={() => setMenuOpen((v) => !v)}
+          className='w-7 h-7 rounded-full bg-white/90 hover:bg-white flex items-center justify-center
+                     shadow-sm border border-border/50'
+          aria-label='Shift actions'
+        >
+          <MoreVertical size={14} />
+        </button>
+
+        {menuOpen && (
+          <div className='absolute right-0 mt-1 w-32 bg-surface rounded-lg border border-border shadow-lg overflow-hidden z-10'>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                onEdit?.(shift);
+              }}
+              className='w-full flex items-center gap-2 px-3 py-2 text-xs text-text-primary hover:bg-surface-hover transition-colors'
+            >
+              <Pencil size={13} /> Edit
+            </button>
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                onDelete?.(shift);
+              }}
+              className='w-full flex items-center gap-2 px-3 py-2 text-xs text-accent-red hover:bg-red-50 transition-colors'
+            >
+              <Trash2 size={13} /> Delete
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }

@@ -1,52 +1,61 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import StatCard from "@/components/stat-card";
 import ShiftCardComponent from "@/components/shift-card";
 import ShiftDetailModal from "@/components/shift-detail-modal";
+import DeleteConfirmModal from "@/components/delete-confirm-modal";
 import { StatsGridSkeleton } from "@/components/loading-skeleton";
-import { shiftManagementStats, mockShiftCards } from "@/lib/mock-data";
-import type { ShiftCard, ShiftFilterTab } from "@/lib/types";
-import { useGetAllShiftsAssignmentsQuery } from "@/redux/features/shifts/shiftsAPI";
+import { shiftManagementStats } from "@/lib/mock-data";
+import type { Shift, ShiftFilterTab } from "@/lib/types";
+import { useToast } from "@/components/toast";
+import {
+  useGetAllShiftsAssignmentsQuery,
+  useDeleteShiftAssignmentMutation,
+} from "@/redux/features/shifts/shiftsAPI";
 
-/** Filter tab definitions */
 const tabs: { key: ShiftFilterTab; label: string }[] = [
   { key: "in-progress", label: "In Progress" },
   { key: "completed", label: "Completed" },
 ];
 
-/**
- * Shift Management page.
- * Shows stat cards, filter tabs (In Progress / Completed), "+ Add Shift" button,
- * and a responsive card grid of shift cards. Clicking a card opens a detail modal.
- */
 export default function ShiftManagementPage() {
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { addToast } = useToast();
+
   const [activeTab, setActiveTab] = useState<ShiftFilterTab>("in-progress");
-  const [selectedShift, setSelectedShift] = useState<ShiftCard | null>(null);
+  const [page, setPage] = useState(1);
+  const [selectedShift, setSelectedShift] = useState<Shift | null>(null);
+  const [shiftToDelete, setShiftToDelete] = useState<Shift | null>(null);
 
-  const { data } = useGetAllShiftsAssignmentsQuery(undefined);
+  const { data, isLoading, isFetching } = useGetAllShiftsAssignmentsQuery({
+    page,
+  });
+  const [deleteShift, { isLoading: isDeleting }] =
+    useDeleteShiftAssignmentMutation();
 
-  console.log({ data });
+  const shifts: Shift[] = data?.data ?? [];
+  const meta = data?.meta;
 
-  // Simulate loading delay
-  useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Filter shifts based on active tab
-  const filteredShifts = useMemo(
-    () => mockShiftCards.filter((s) => s.status === activeTab),
-    [activeTab],
-  );
+  const handleDeleteConfirm = async () => {
+    if (!shiftToDelete) return;
+    try {
+      await deleteShift(shiftToDelete.id).unwrap();
+      addToast("Shift deleted successfully", "success");
+      if (selectedShift?.id === shiftToDelete.id) setSelectedShift(null);
+      setShiftToDelete(null);
+    } catch (err) {
+      console.error(err);
+      addToast("Failed to delete shift. Please try again.", "error");
+    }
+  };
 
   return (
     <div className='space-y-6'>
-      {/* ── Stat Cards ────────────────────────────────────────── */}
-      {loading ? (
+      {isLoading ? (
         <StatsGridSkeleton />
       ) : (
         <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4'>
@@ -56,25 +65,23 @@ export default function ShiftManagementPage() {
         </div>
       )}
 
-      {/* ── Filter Tabs + Add Shift Button ────────────────────── */}
-      {!loading && (
+      {!isLoading && (
         <div className='flex items-center justify-between flex-wrap gap-3'>
-          {/* Tabs */}
           <div className='flex items-center gap-2'>
             {tabs.map((tab) => {
               const active = activeTab === tab.key;
               return (
                 <button
                   key={tab.key}
-                  onClick={() => setActiveTab(tab.key)}
-                  className={`
-                    px-5 py-2 rounded-full text-sm font-medium transition-all duration-200
-                    ${
-                      active
-                        ? "bg-primary text-white shadow-md"
-                        : "bg-surface text-primary border border-primary/30 hover:bg-primary/5"
-                    }
-                  `}
+                  onClick={() => {
+                    setActiveTab(tab.key);
+                    setPage(1);
+                  }}
+                  className={`px-5 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
+                    active
+                      ? "bg-primary text-white shadow-md"
+                      : "bg-surface text-primary border border-primary/30 hover:bg-primary/5"
+                  }`}
                 >
                   {tab.label}
                 </button>
@@ -82,7 +89,6 @@ export default function ShiftManagementPage() {
             })}
           </div>
 
-          {/* Add Shift Button */}
           <Link
             href='/shift-management/add'
             className='inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary text-white
@@ -94,8 +100,7 @@ export default function ShiftManagementPage() {
         </div>
       )}
 
-      {/* ── Shift Cards Grid ──────────────────────────────────── */}
-      {loading ? (
+      {isLoading ? (
         <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
           {Array.from({ length: 8 }).map((_, i) => (
             <div
@@ -112,8 +117,7 @@ export default function ShiftManagementPage() {
             </div>
           ))}
         </div>
-      ) : filteredShifts.length === 0 ? (
-        /* Empty state */
+      ) : shifts?.length === 0 ? (
         <div className='bg-surface rounded-xl border border-border shadow-card p-16 text-center'>
           <div className='flex flex-col items-center gap-3 text-text-muted'>
             <svg
@@ -138,22 +142,65 @@ export default function ShiftManagementPage() {
           </div>
         </div>
       ) : (
-        <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4'>
-          {filteredShifts.map((shift) => (
-            <ShiftCardComponent
-              key={shift.id}
-              shift={shift}
-              onClick={setSelectedShift}
-            />
-          ))}
-        </div>
+        <>
+          <div
+            className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 ${
+              isFetching ? "opacity-60 pointer-events-none" : ""
+            }`}
+          >
+            {shifts?.map((shift) => (
+              <ShiftCardComponent
+                key={shift.id}
+                shift={shift}
+                onClick={setSelectedShift}
+                onEdit={(s) =>
+                  router.push(`/shift-management/add?edit=${s.id}`)
+                }
+                onDelete={setShiftToDelete}
+              />
+            ))}
+          </div>
+
+          {meta && meta.total_pages > 1 && (
+            <div className='flex items-center justify-center gap-2 pt-2'>
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={!meta.previous}
+                className='px-4 py-2 rounded-full text-sm font-medium border border-border
+                           disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-hover'
+              >
+                Previous
+              </button>
+              <span className='text-sm text-text-muted'>
+                Page {meta.page} of {meta.total_pages}
+              </span>
+              <button
+                onClick={() => setPage((p) => p + 1)}
+                disabled={!meta.next}
+                className='px-4 py-2 rounded-full text-sm font-medium border border-border
+                           disabled:opacity-40 disabled:cursor-not-allowed hover:bg-surface-hover'
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
       )}
 
-      {/* ── Shift Detail Modal ────────────────────────────────── */}
       {selectedShift && (
         <ShiftDetailModal
           shift={selectedShift}
           onClose={() => setSelectedShift(null)}
+        />
+      )}
+
+      {shiftToDelete && (
+        <DeleteConfirmModal
+          title='Delete Shift'
+          message={`Are you sure you want to delete this ${shiftToDelete.profession} shift on ${shiftToDelete.shift_date}? This action cannot be undone.`}
+          loading={isDeleting}
+          onConfirm={handleDeleteConfirm}
+          onCancel={() => setShiftToDelete(null)}
         />
       )}
     </div>

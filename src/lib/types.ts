@@ -176,3 +176,105 @@ export interface ToastMessage {
   message: string;
   type: "success" | "error" | "info";
 }
+
+export interface ShiftFacility {
+  id: number;
+  name: string;
+  image: string | null;
+  address: string;
+  city: string;
+  state: string;
+  latitude: string | null;
+  longitude: string | null;
+}
+
+export interface Shift {
+  id: number;
+  facility: {
+    id: number;
+    name: string;
+    image: string | null;
+    address: string;
+    city: string;
+    state: string;
+    latitude: string | null;
+    longitude: string | null;
+  }; // object in list response, may be id in other contexts
+  facility_image?: string | null; // fallback if some endpoints still send this flat field
+  profession?: "CNA" | "LPN" | "RN";
+  department?: string;
+  shift_date: string;
+  start_time: string;
+  end_time: string;
+  shift_type?: "days" | "nights" | "evenings" | "overnight";
+  required_nurses?: number;
+  pay_rate: string;
+  pay_frequency?: "daily" | "weekly" | "biweekly";
+  assignment_type?: "staff_nurse" | "charge_nurse" | "float_pool";
+  patient_ratio?: string;
+  mandatory_float?: boolean;
+  is_emergency?: boolean;
+  experience_required_years?: number;
+  dress_code?: string;
+  notes?: string;
+  status?: "OPEN" | "ASSIGNED" | "COMPLETED" | "CANCELLED";
+  estimated_pay?: number;
+  booked_count?: number;
+  created_at?: string;
+}
+
+// Helper: resolves a Shift's facility whether it's an id or a nested object
+export function getFacilityInfo(shift: Shift): ShiftFacility | null {
+  return typeof shift.facility === "object" && shift.facility !== null
+    ? shift.facility
+    : null;
+}
+
+export function getFacilityId(shift: Shift): number {
+  return typeof shift.facility === "object" && shift.facility !== null
+    ? shift.facility.id
+    : shift.facility;
+}
+
+// ... keep ShiftFormData, ShiftsListResponse, ShiftDetailResponse as before
+
+export interface ShiftFormData {
+  facility: number;
+  profession: "CNA" | "LPN" | "RN";
+  department: string;
+  shift_date: string;
+  start_time: string;
+  end_time: string;
+  shift_type: "days" | "nights" | "evenings" | "overnight";
+  required_nurses: number;
+  pay_rate: string;
+  pay_frequency: "daily" | "weekly" | "biweekly";
+  assignment_type: "staff_nurse" | "charge_nurse" | "float_pool";
+  patient_ratio?: string;
+  mandatory_float?: boolean;
+  experience_required_years?: number;
+  dress_code?: string;
+  notes?: string;
+}
+
+export interface ShiftsListResponse {
+  status: string;
+  code: number;
+  message: string;
+  data: Shift[];
+  meta: {
+    count: number;
+    page: number;
+    page_size: number;
+    next: string | null;
+    previous: string | null;
+    total_pages: number;
+  };
+}
+
+export interface ShiftDetailResponse {
+  status: string;
+  code: number;
+  message: string;
+  data: Shift;
+}

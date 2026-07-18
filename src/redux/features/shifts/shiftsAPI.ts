@@ -4,7 +4,7 @@ const shiftsAPI = baseAPI.injectEndpoints({
   endpoints: (builder) => ({
     getAllShiftsAssignments: builder.query({
       query: (params) => ({
-        url: "/shifts/assignments/",
+        url: "/shifts/shift/",
         method: "GET",
         params: params ?? {},
       }),
@@ -13,14 +13,14 @@ const shiftsAPI = baseAPI.injectEndpoints({
 
     getSingleShiftAssignment: builder.query({
       query: (id) => ({
-        url: `/shifts/assignments/${id}/`,
+        url: `/shifts/shift/${id}/`,
       }),
       providesTags: ["Shift"],
     }),
 
     createShiftAssignment: builder.mutation({
       query: (data) => ({
-        url: "/shifts/assignments/",
+        url: "/shifts/shift/",
         method: "POST",
         body: data,
       }),
@@ -29,7 +29,7 @@ const shiftsAPI = baseAPI.injectEndpoints({
 
     updateShiftAssignment: builder.mutation({
       query: ({ id, data }) => ({
-        url: `/shifts/assignments/${id}/`,
+        url: `/shifts/shift/${id}/`,
         method: "PUT",
         body: data,
       }),
@@ -38,7 +38,7 @@ const shiftsAPI = baseAPI.injectEndpoints({
 
     deleteShiftAssignment: builder.mutation({
       query: (id) => ({
-        url: `/shifts/assignments/${id}/`,
+        url: `/shifts/shift/${id}/`,
         method: "DELETE",
       }),
       invalidatesTags: ["Shift"],
