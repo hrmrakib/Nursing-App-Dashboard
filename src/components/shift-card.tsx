@@ -58,7 +58,7 @@ export default function ShiftCardComponent({
                  hover:shadow-md transition-shadow cursor-pointer relative'
       onClick={() => onClick?.(shift)}
     >
-      <div className='h-32 bg-surface-alt overflow-hidden'>
+      <div className='h-38 bg-surface-alt overflow-hidden'>
         {imageUrl ? (
           <img
             src={imageUrl}

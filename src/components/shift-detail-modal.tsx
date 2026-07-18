@@ -119,7 +119,7 @@ export default function ShiftDetailModal({
     <>
       {/* Backdrop */}
       <div
-        className='fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-fade-in'
+        className='min-h-screen fixed inset-0 z-50 bg-black/40 backdrop-blur-sm animate-fade-in'
         onClick={onClose}
       />
 
@@ -142,7 +142,7 @@ export default function ShiftDetailModal({
           </button>
 
           {/* ── Facility Image ────────────────────────────────── */}
-          <div className='relative h-44 bg-surface-alt overflow-hidden'>
+          <div className='relative h-52 bg-surface-alt overflow-hidden'>
             {imageUrl ? (
               <img
                 src={imageUrl}
