@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, ChevronDown, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronDown, Loader2, X } from "lucide-react";
 import { useToast } from "@/components/toast";
 import type { ShiftFormData } from "@/lib/types";
 import {
@@ -73,9 +73,27 @@ const initialForm: ShiftFormData = {
   notes: "",
 };
 
+// Builds a multipart FormData payload from the form state + optional image file.
+// Booleans/numbers are stringified since FormData only holds strings/Blobs.
+function buildShiftFormData(data: ShiftFormData, image: File | null): FormData {
+  const fd = new FormData();
+
+  Object.entries(data).forEach(([key, value]) => {
+    if (value === null || value === undefined) return;
+    fd.append(key, typeof value === "boolean" ? String(value) : String(value));
+  });
+
+  if (image) {
+    fd.append("image", image);
+  }
+
+  return fd;
+}
+
 export default function AddShiftPage() {
   const searchParams = useSearchParams();
   const editId = searchParams.get("edit");
+  const facilityId = searchParams.get("facilityId");
   const isEditMode = !!editId;
 
   const router = useRouter();
@@ -84,8 +102,12 @@ export default function AddShiftPage() {
   const [form, setForm] = useState<ShiftFormData>(initialForm);
   const [errors, setErrors] = useState<FormErrors>({});
 
+  // Image upload state (kept separate from ShiftFormData since it's a File, not a form field type)
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
   const { data: allFacilitiesData } = useGetAllFacilitiesQuery(undefined);
-  const facilities: { id: number; name: string }[] =
+  const facilities: { id: number; name: string; image: string }[] =
     allFacilitiesData?.data ?? [];
 
   const { data: existingShiftData, isLoading: isLoadingShift } =
@@ -97,6 +119,17 @@ export default function AddShiftPage() {
     useUpdateShiftAssignmentMutation();
   const submitting = isCreating || isUpdating;
 
+  // Prefill facility from ?facilityId= when adding a new shift (not in edit mode)
+  useEffect(() => {
+    if (!isEditMode && facilityId && facilities.length > 0) {
+      const idNum = Number(facilityId);
+      if (!isNaN(idNum) && facilities.some((f) => f.id === idNum)) {
+        setForm((prev) => ({ ...prev, facility: idNum }));
+      }
+    }
+  }, [facilityId, facilities, isEditMode]);
+
+  // Load existing shift data (edit mode), including any existing image for preview
   useEffect(() => {
     if (existingShiftData?.data) {
       const s = existingShiftData.data;
@@ -118,8 +151,23 @@ export default function AddShiftPage() {
         dress_code: s.dress_code ?? "",
         notes: s.notes ?? "",
       });
+
+      // If the existing shift already has an image, show it as the preview
+      const existingImage = (s as { image?: string }).image;
+      if (existingImage) {
+        setImagePreview(existingImage);
+      }
     }
   }, [existingShiftData]);
+
+  // Revoke object URLs we created for local previews (not for server-hosted images)
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith("blob:")) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
 
   const updateField = <K extends keyof ShiftFormData>(
     key: K,
@@ -127,6 +175,28 @@ export default function AddShiftPage() {
   ) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0] ?? null;
+    if (!file) return;
+
+    if (imagePreview && imagePreview.startsWith("blob:")) {
+      URL.revokeObjectURL(imagePreview);
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleRemoveImage = () => {
+    if (imagePreview && imagePreview.startsWith("blob:")) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    setImageFile(null);
+    setImagePreview(null);
+  };
+
+  const selectedFacility = facilities.find((f) => f.id === form.facility);
 
   const validate = useCallback((): boolean => {
     const newErrors: FormErrors = {};
@@ -162,12 +232,14 @@ export default function AddShiftPage() {
         form.end_time.length === 5 ? `${form.end_time}:00` : form.end_time,
     };
 
+    const formData = buildShiftFormData(payload, imageFile);
+
     try {
       if (isEditMode && editId) {
-        await updateShift({ id: editId, data: payload }).unwrap();
+        await updateShift({ id: editId, data: formData }).unwrap();
         addToast("Shift updated successfully!", "success");
       } else {
-        await createShift(payload).unwrap();
+        await createShift(formData).unwrap();
         addToast("Shift published successfully!", "success");
       }
       router.push("/shift-management");
@@ -182,6 +254,7 @@ export default function AddShiftPage() {
     }
   }, [
     form,
+    imageFile,
     validate,
     isEditMode,
     editId,
@@ -246,6 +319,20 @@ export default function AddShiftPage() {
             </div>
             {errors.facility && (
               <p className='text-xs text-accent-red mt-1'>{errors.facility}</p>
+            )}
+
+            {/* Selected facility preview image */}
+            {selectedFacility?.image && (
+              <div className='mt-2.5 flex items-center gap-2.5'>
+                <img
+                  src={selectedFacility.image}
+                  alt={selectedFacility.name}
+                  className='w-12 h-12 rounded-lg object-cover border border-border'
+                />
+                <span className='text-xs text-text-secondary'>
+                  {selectedFacility.name}
+                </span>
+              </div>
             )}
           </div>
 
@@ -457,6 +544,48 @@ export default function AddShiftPage() {
               placeholder='Any additional notes for this shift'
               className='w-full px-4 py-2.5 text-sm rounded-lg border border-border bg-surface text-text-primary focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all resize-none'
             />
+          </div>
+
+          {/* Shift image upload */}
+          <div>
+            <label className='text-sm font-semibold text-text-primary block mb-1.5'>
+              Shift Image
+            </label>
+            <div className='flex items-center gap-4'>
+              {imagePreview ? (
+                <div className='relative'>
+                  <img
+                    src={imagePreview}
+                    alt='Shift preview'
+                    className='w-16 h-16 rounded-lg object-cover border border-border'
+                  />
+                  <button
+                    type='button'
+                    onClick={handleRemoveImage}
+                    className='absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-accent-red text-white flex items-center justify-center'
+                    aria-label='Remove image'
+                  >
+                    <X size={12} />
+                  </button>
+                </div>
+              ) : (
+                <div className='w-16 h-16 rounded-lg border border-dashed border-border flex items-center justify-center text-xs text-text-muted'>
+                  No image
+                </div>
+              )}
+
+              <label className='flex-1 cursor-pointer'>
+                <span className='inline-block px-4 py-2 text-sm font-medium rounded-lg border border-border text-text-primary hover:bg-primary/5 transition-colors'>
+                  {imagePreview ? "Change image" : "Upload image"}
+                </span>
+                <input
+                  type='file'
+                  accept='image/*'
+                  onChange={handleImageChange}
+                  className='hidden'
+                />
+              </label>
+            </div>
           </div>
 
           <div className='space-y-3 pt-4'>
