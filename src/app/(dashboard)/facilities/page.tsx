@@ -112,7 +112,7 @@ export default function FacilitiesPage() {
       </div>
 
       {/* Facilities List */}
-      <div className='grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6'>
+      <div className='grid grid-cols-1 xl:grid-cols-2 gap-6'>
         {isLoadingFacilities ? (
           <div className='flex justify-center py-12'>
             <div className='w-8 h-8 border-4 border-blue-200 border-t-blue-600 rounded-full animate-spin'></div>

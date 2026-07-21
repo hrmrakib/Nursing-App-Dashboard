@@ -32,9 +32,9 @@ export default function FacilityCard({
 }: FacilityCardProps) {
   const router = useRouter();
   return (
-    <div className='bg-white rounded-xl p-4 flex items-center gap-4 shadow-sm border border-gray-100 w-full max-w-xl'>
+    <div className='bg-white rounded-xl p-4 flex items-center gap-4 shadow-sm border-4 border-gray-100 w-full max-w-2xl'>
       {/* Image */}
-      <div className='relative w-24 h-24 rounded-lg overflow-hidden shrink-0 bg-gray-100'>
+      <div className='relative w-16 h-16 md:w-48 md:h-48 rounded-lg overflow-hidden shrink-0 bg-gray-100'>
         {facility.image ? (
           <Image
             src={facility.image}
