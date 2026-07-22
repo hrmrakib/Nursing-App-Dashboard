@@ -39,6 +39,7 @@ export interface NurseApiResponse {
 }
 
 export type ReviewAction = "approve" | "reject";
+
 export default function NurseProfileDashboard() {
   const router = useRouter();
   const [actioning, setActioning] = useState("");
@@ -98,22 +99,37 @@ export default function NurseProfileDashboard() {
   }
 
   const nurse = response.data;
+  const applicationStatus = nurse?.application_status;
 
-  const isApplicationApproved = nurse?.application_status === "approved";
+  console.log({ applicationStatus });
 
-  // Reusable typed component for profile fields
+  // Helper function to assign background and text colors based on status
+  const getStatusStyles = (status: string | undefined) => {
+    switch (status) {
+      case "approved":
+        return "bg-green-100 text-green-800";
+      case "rejected":
+        return "bg-red-100 text-red-800";
+      case "pending_review":
+        return "bg-yellow-100 text-yellow-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  // Reusable typed component for profile fields - updated to accept ReactNode for custom styling
   const ProfileField = ({
     label,
     value,
   }: {
     label: string;
-    value: string | number;
+    value: React.ReactNode;
   }) => (
     <div className='mb-4'>
       <p className='text-sm font-semibold text-gray-900'>{label}</p>
-      <p className='text-base text-slate-600 font-medium mt-0.5'>
+      <div className='text-base text-slate-600 font-medium mt-0.5'>
         {value || "N/A"}
-      </p>
+      </div>
     </div>
   );
 
@@ -142,7 +158,14 @@ export default function NurseProfileDashboard() {
               />
             </svg>
           </button>
-          <h1 className='text-lg font-bold text-gray-900'>Nurse Profile</h1>
+          <h1 className='text-lg font-bold text-gray-900 flex items-center gap-2'>
+            Nurse Profile -
+            <span
+              className={`text-sm px-2.5 py-1 rounded-md font-semibold capitalize ${getStatusStyles(applicationStatus)}`}
+            >
+              {applicationStatus?.replace(/_/g, " ")}
+            </span>
+          </h1>
         </div>
 
         {/* Profile Avatar */}
@@ -162,7 +185,13 @@ export default function NurseProfileDashboard() {
           <ProfileField label='Name' value={nurse.name} />
           <ProfileField
             label='Application Status'
-            value={nurse.application_status}
+            value={
+              <span
+                className={`inline-block px-2.5 py-1 rounded-md text-sm font-semibold capitalize ${getStatusStyles(nurse.application_status)}`}
+              >
+                {nurse.application_status?.replace(/_/g, " ")}
+              </span>
+            }
           />
           <ProfileField label='Phone Number' value={nurse.phone} />
           <ProfileField label='Email' value={nurse.email} />
@@ -188,15 +217,6 @@ export default function NurseProfileDashboard() {
                 <p className='text-sm font-semibold text-gray-900 capitalize'>
                   {doc.document_type.replace(/_/g, " ")}
                 </p>
-                {/* <div className='relative w-full h-48 sm:h-56 border-2 border-gray-100 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center'>
-                  <Image
-                    src={doc.file}
-                    alt={doc.document_type}
-                    fill
-                    className='w-full object-contain'
-                    unoptimized
-                  />
-                </div> */}
                 <div className='relative w-full border-2 border-gray-100 rounded-lg overflow-hidden bg-gray-50 flex items-center justify-center'>
                   <Image
                     src={doc.file}
@@ -214,25 +234,33 @@ export default function NurseProfileDashboard() {
         )}
 
         {/* Action Buttons */}
-        {!isApplicationApproved && (
-          <div className='flex flex-col gap-3 mt-8'>
+        <div className='flex flex-col gap-3 mt-8'>
+          {/* Show Approve button when status is pending_review or rejected */}
+          {applicationStatus !== "approved" && (
             <button
               onClick={() => handleReviewAction("approve")}
               disabled={isReviewing}
               className='w-full py-3 rounded-lg font-semibold bg-[#112a58] text-white hover:bg-[#0c1e40] transition-colors disabled:opacity-70 disabled:cursor-not-allowed'
             >
-              {isReviewing ? "Processing..." : "Approve"}
+              {isReviewing && actioning === "approve"
+                ? "Processing..."
+                : "Approve"}
             </button>
+          )}
 
+          {/* Show Reject button when status is pending_review or approved */}
+          {applicationStatus !== "rejected" && (
             <button
               onClick={() => handleReviewAction("reject")}
               disabled={isReviewing}
               className='w-full py-3 rounded-lg font-semibold bg-white text-[#112a58] border-2 border-[#112a58] hover:bg-gray-50 transition-colors disabled:opacity-70 disabled:cursor-not-allowed'
             >
-              {isReviewing ? "Processing..." : "Reject"}
+              {isReviewing && actioning === "reject"
+                ? "Processing..."
+                : "Reject"}
             </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
